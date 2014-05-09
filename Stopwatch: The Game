@@ -1,0 +1,85 @@
+# template for "Stopwatch: The Game"
+import simplegui
+
+# define global variables
+
+tick = 0
+guess_count = 0 
+correct_guess = 0
+
+#Extra Globals to make easier to center the time text
+c_width = 300
+c_hieght = 200 
+text_size = 75
+
+# define helper function format that converts time
+# in tenths of seconds into formatted string A:BC.D
+def format(t):
+    d = t % 10 
+    c = (t/10) % 10
+    b = (t/100) % 6 
+    a = (t/10) / 60
+    
+    return str(a) + ":" + str(b) + str(c) + "." + str(d)
+    
+# define event handlers for buttons; "Start", "Stop", "Reset"
+def start_handler():
+    timer.start()
+
+    
+def stop_handler():
+    global guess_count
+    global correct_guess 
+    
+    if timer.is_running():
+        timer.stop()
+        guess_count += 1
+        
+        if (tick % 10) == 0:
+            correct_guess += 1
+  
+            
+def reset_handler():
+    global tick
+    global guess_count
+    global correct_guess
+    
+    guess_count = 0
+    correct_guess = 0
+    tick = 0
+    timer.stop()
+
+    
+# define event handler for timer with 0.1 sec interval
+def timer_handler():
+    global tick
+    tick +=1
+
+    
+# define draw handler
+def draw_handler(canvas):
+    time = format(tick)
+    score = str(correct_guess) + '/' + str(guess_count)
+    
+    #added the following to calculate exact center. 
+    text_x = (c_width - frame.get_canvas_textwidth(time, text_size))/2
+    text_y = (c_hieght/2) + (text_size/3)
+    
+    canvas.draw_text(score, [225, 40], 40, 'Green')
+    canvas.draw_text(time, [text_x, text_y], text_size, 'White')
+ 
+    
+# create frame
+frame = simplegui.create_frame('StopWatch', c_width, c_hieght)
+
+# register event handlers
+frame.set_draw_handler(draw_handler)
+start = frame.add_button('Start', start_handler,50)
+stop = frame.add_button('Stop', stop_handler, 50)
+reset = frame.add_button('Reset', reset_handler,50)
+timer = simplegui.create_timer(100, timer_handler)
+
+# start frame
+frame.start()
+
+# Please remember to review the grading rubric
