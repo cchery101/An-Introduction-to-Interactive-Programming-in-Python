@@ -1,0 +1,242 @@
+# Mini-project #6 - Blackjack
+import simplegui
+import random
+
+# load card sprite - 949x392 - source: jfitz.com
+CARD_SIZE = (73, 98)
+CARD_CENTER = (36.5, 49)
+card_images = simplegui.load_image("http://commondatastorage.googleapis.com/codeskulptor-assets/cards.jfitz.png")
+
+CARD_BACK_SIZE = (71, 96)
+CARD_BACK_CENTER = (35.5, 48)
+card_back = simplegui.load_image("http://commondatastorage.googleapis.com/codeskulptor-assets/card_back.png")
+
+# initialize some useful global variables
+in_play = False
+outcome = ""
+score = 0
+win = 1  # Variables for my keep_score function
+loss = -1
+
+# define globals for cards
+SUITS = ('C', 'S', 'H', 'D')
+RANKS = ('A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K')
+VALUES = {'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 10, 'Q': 10, 'K': 10}
+
+
+def draw_dialog(canvas):  # Helper to draw game status dialog and display box
+    canvas.draw_polygon([[157.5, 284], [542.5, 284], [542.5, 414], [157.5, 414]], 2, 'Orange', 'Black')
+    canvas.draw_text(str_dealer + d_bust, (167.5, 315), 25, 'White', "monospace")
+    canvas.draw_text(str_player + p_bust, (167.5, 359), 25, 'White', "monospace")
+    canvas.draw_text(str_status, (167.5, 402), 25, 'White', "monospace")
+
+
+def draw_score(canvas):  # Helper to draw game score and display box
+    x = 498.25
+    y = 28
+
+    canvas.draw_polygon([[492, 10], [492, 100], [592.5, 100], [592.5, 10]], 2, 'Orange', 'Black')
+    canvas.draw_polyline([[517, 99], [517, 35], [591.5, 35]], 2, 'Orange')
+
+    for letter in "Score":
+        canvas.draw_text(letter, (x, y), 20, 'White', "monospace")
+        x += 18
+
+    x = 498.25
+    for letter in "Score":
+        canvas.draw_text(letter, (x, y), 20, 'White', "monospace")
+        y += 16
+
+    center = frame.get_canvas_textwidth(str(score), 40, "monospace") / 2
+    canvas.draw_text(str(score), (554.25 - center, 77), 40, 'White', "monospace")
+
+
+def draw_design(canvas):  # Helper to draw title, dealer label, player label and boxes
+    canvas.draw_polygon([[200, 10], [200, 60], [400, 60], [400, 10]], 2, 'Orange', 'Black')
+    canvas.draw_text('BlackJack', (218.5, 47), 40, 'White')
+    canvas.draw_polygon([[7.5, 143], [7.5, 255], [592.5, 255], [592.5, 143]], 2, 'Orange', 'Green')
+    canvas.draw_polygon([[7.5, 443], [7.5, 555], [592.5, 555], [592.5, 443]], 2, 'Orange', 'Green')
+    canvas.draw_polygon([[7.5, 143], [7.5, 113], [107.5, 113], [107.5, 143]], 2, 'Orange', 'Black')
+    canvas.draw_polygon([[7.5, 443], [7.5, 413], [107.5, 413], [107.5, 443]], 2, 'Orange', 'Black')
+    canvas.draw_line((8.5, 143), (106.5, 143), 2, 'Black')
+    canvas.draw_line((5.85, 140), (5.85, 150), 1, 'Green')
+    canvas.draw_line((8.5, 443), (106.5, 443), 2, 'Black')
+    canvas.draw_line((5.85, 440), (5.85, 450), 1, 'Green')
+    canvas.draw_text('Dealer', (12.5, 137), 25, 'White', "monospace")
+    canvas.draw_text('Player', (12.5, 437), 25, 'White', "monospace")
+
+
+def keep_score(win_loss):  # Helper to keep track of score
+    global score
+
+    if in_play:  # If game is on calculate scores
+        score += win_loss
+
+
+# define card class
+class Card:
+    def __init__(self, suit, rank):
+        if (suit in SUITS) and (rank in RANKS):
+            self.suit = suit
+            self.rank = rank
+        else:
+            self.suit = None
+            self.rank = None
+            print "Invalid card: ", suit, rank
+
+    def __str__(self):
+        return self.suit + self.rank
+
+    def get_suit(self):
+        return self.suit
+
+    def get_rank(self):
+        return self.rank
+
+    def draw(self, canvas, pos):
+        card_loc = (CARD_CENTER[0] + CARD_SIZE[0] * RANKS.index(self.rank),
+                    CARD_CENTER[1] + CARD_SIZE[1] * SUITS.index(self.suit))
+        canvas.draw_image(card_images, card_loc, CARD_SIZE, [pos[0] + CARD_CENTER[0], pos[1] + CARD_CENTER[1]],
+                          CARD_SIZE)
+
+
+# define hand class
+class Hand:
+    def __init__(self):
+        self.hand = []
+
+    def __str__(self):
+        str_hand = ""
+        for card in self.hand:
+            str_hand += str(card) + " "
+
+        return str_hand
+
+    def add_card(self, card):
+        self.hand.append(str(card))  # Add card to hand
+
+    def get_value(self):
+        value = 0
+
+        for card in self.hand:  # Calculate value of hand
+            value += VALUES[card[1]]
+
+        for card in self.hand:  # Calculate value of Aces in hand
+            if card[1] == "A" and value <= 11:
+                value += 10
+
+        return value
+
+    def draw(self, canvas, pos):  # Draw the hand
+        x = pos[0]
+        y = pos[1]
+        for cards in self.hand:
+            card = Card(cards[0], cards[1])
+            card.draw(canvas, (x, y))
+            x += 100
+
+
+class Deck:
+    def __init__(self):
+        self.deck = [suit + rank for suit in SUITS for rank in RANKS]  # List comprehension to create deck
+
+    def shuffle(self):
+        # shuffle the deck 
+        random.shuffle(self.deck)
+
+    def deal_card(self):
+        card = self.deck.pop(0)  # Remove top card and assign it to card
+        return Card(card[0], card[1])  # Return card in a format easier to use
+
+    def __str__(self):
+        str_deck = "Deck contains "
+        for card in self.deck:
+            str_deck += str(card) + " "
+        return str_deck
+
+
+#define event handlers for buttons
+def deal():
+    global deck, in_play, dealer, player, str_player, str_dealer, str_status, d_bust, p_bust
+
+    if in_play:
+        keep_score(loss)  # New deal before game over counts as a loss
+        
+    deck = Deck()  # Create deck object
+    deck.shuffle()  # Shuffle the deck
+    dealer = Hand()  # Create hand object for dealer
+    player = Hand()  # Create hand object for player
+    dealer.add_card(deck.deal_card())  # Add first two cards to dealers hand
+    dealer.add_card(deck.deal_card())
+    player.add_card(deck.deal_card())  # Add first two cards to dealers hand
+    player.add_card(deck.deal_card())
+    str_player = "Player Total: " + str(player.get_value())  # Strings for my dialog box
+    str_dealer = "Dealer Shows: " + str(VALUES[str(dealer)[4]])
+    str_status = "Hit or Stand?"
+    in_play = True  # Game On
+    d_bust = ""  # Dialog for busting dealer
+    p_bust = ""  # Dialog for busting player
+  
+
+def hit():
+    global player, score, str_player, str_status, in_play, p_bust
+
+    if in_play and player.get_value() <= 21:  # Logic allows a player to hit even if they have 21 
+        player.add_card(deck.deal_card())	  
+        if player.get_value() > 21:  # Player busted
+            keep_score(loss)  # Update score
+            p_bust = " Busted"
+            str_status = "Dealer wins! New Deal?"  # Update dialog box
+            in_play = False  # Game Over
+            stand()
+
+    str_player = "Player Total: " + str(player.get_value())  # Update dialog box
+
+
+def stand():
+    global dealer, in_play, score, str_status, str_dealer, d_bust
+
+    if player.get_value() <= 21:
+        while dealer.get_value() < 17:  # Dealer hits until hand value is >= 17
+            dealer.add_card(deck.deal_card())
+
+        if player.get_value() > dealer.get_value():  # Dealer lost 
+            str_status = "Player wins! New Deal?"  # Update dialog box
+            keep_score(win)  # Update score
+        elif dealer.get_value() > 21:  # Dealer busted
+            str_status = "Player wins! New Deal?"  # Update dialog box
+            keep_score(win)  # Update score
+            d_bust = " Busted"
+        else:  # Player lost
+            str_status = "Dealer wins! New Deal?"  # Update dialog box
+            keep_score(loss)  # Update score
+
+    str_dealer = "Dealer Total: " + str(dealer.get_value())  # Update dialog box
+    in_play = False  # Game Over
+
+
+# draw handler
+def draw(canvas):
+    draw_design(canvas)
+    draw_score(canvas)
+    draw_dialog(canvas)
+    dealer.draw(canvas, [13.5, 150])
+    player.draw(canvas, [13.5, 450])
+
+    if in_play:  # Hide hole card until ready
+        canvas.draw_image(card_back, CARD_BACK_CENTER, CARD_BACK_SIZE, (49, 198), CARD_BACK_SIZE)
+
+
+# initialization frame
+frame = simplegui.create_frame("Blackjack", 600, 600)
+frame.set_canvas_background("Green")
+
+#create buttons and canvas callback
+frame.add_button("Deal", deal, 200)
+frame.add_button("Hit", hit, 200)
+frame.add_button("Stand", stand, 200)
+frame.set_draw_handler(draw)
+
+# get things rolling
+deal()
+frame.start()
