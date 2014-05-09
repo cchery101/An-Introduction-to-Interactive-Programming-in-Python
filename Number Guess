@@ -1,0 +1,75 @@
+import simplegui
+import random
+import math
+
+range_high = 101
+remaining_guess = 7
+
+# helper function to start and restart the game
+def new_game():
+    global secret_number
+    global remaining_guess
+   
+    if range_high == 101:
+       remaining_guess = 7
+    else:
+        remaining_guess = 10
+        
+    secret_number = random.randrange(0, range_high)
+    print "Guess a number between 0"  + " - " + str(range_high - 1)
+    print "You have " + str(remaining_guess) + " guesses" 
+    print
+    
+# define event handlers for control panel
+def range100():   
+    # button that changes range to range [0,100) and restarts
+    global range_high
+    range_high = 101
+    new_game()
+
+    
+def range1000():
+    # button that changes range to range [0,1000) and restarts
+    global range_high
+    range_high = 1001
+    new_game()
+
+    
+def input_guess(guess):
+    # main game logic goes here	
+    global remaining_guess
+    remaining_guess -= 1
+    
+    if float(guess) > secret_number:
+        print "Your guess of " + guess +" is high."
+        print str(remaining_guess) + " guesses remaining"
+        if remaining_guess <= 0:
+            print "You lost"
+            print
+            new_game()
+    elif float(guess) < secret_number:
+        print "Your guess of " + guess +" is low."
+        print str(remaining_guess) + " guesses remaining"
+        if remaining_guess <= 0:
+            print "You lost"
+            print
+            new_game()
+    elif float(guess) == secret_number:
+        print "Correct, You Win!\n"
+        new_game() 
+        
+    print 
+    
+# create frame
+f = simplegui.create_frame("Guess the Number", 200, 200)
+
+
+# register event handlers for control elements
+f.add_button("Range is [0, 100)",range100, 200)
+f.add_button("Range is [0, 1000)",range1000, 200)
+f.add_input("Enter a guess", input_guess, 200)
+
+# call new_game and start frame
+new_game()
+f.start()
+# always remember to check your completed program against the grading rubric
